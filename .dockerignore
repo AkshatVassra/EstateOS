@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+Dockerfile*
+docker-compose*
+.dockerignore
+.git
+.gitignore
+README.md
+.env*
+!.env.example
+apps/*/node_modules
+packages/*/node_modules
+apps/*/.next
+apps/*/dist
+packages/*/dist
+.gemini
+brain

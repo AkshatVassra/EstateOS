@@ -1,0 +1,11 @@
+{
+  "name": "@estateos/ai",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/router.ts",
+  "types": "./src/router.ts",
+  "exports": {
+    ".": "./src/router.ts",
+    "./types": "./types.ts"
+  }
+}

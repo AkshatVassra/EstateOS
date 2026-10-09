@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js & Build artifacts
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# Environment files and credentials
+.env
+.env*
+!.env.example
+apps/*/.env*
+!apps/*/.env.example
+packages/*/.env*
+!packages/*/.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.exe

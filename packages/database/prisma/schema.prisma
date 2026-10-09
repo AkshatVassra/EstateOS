@@ -1,0 +1,1279 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFYING
+  QUALIFIED
+  VIEWING
+  NEGOTIATION
+  WON
+  LOST
+  DORMANT
+  HOT
+  WARM
+  COLD
+  SITE_VISIT
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum LeadTemperature {
+  COLD
+  WARM
+  HOT
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+  INTERNAL_NOTE
+}
+
+enum PropertyStatus {
+  DRAFT
+  AVAILABLE
+  RESERVED
+  SOLD
+  OFF_MARKET
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum LeadSourceEnum {
+  WEBSITE
+  WHATSAPP
+  FACEBOOK
+  INSTAGRAM
+  GOOGLE_ADS
+  REFERRAL
+  WALKIN
+  PROPERTY_PORTAL
+}
+
+enum PropertyAmenityEnum {
+  POOL
+  GYM
+  PARKING
+  BALCONY
+  GARDEN
+  SECURITY
+  KIDS_AREA
+  METRO_NEARBY
+}
+
+// ==========================================
+// MODULE 1: AGENCY MANAGEMENT
+// ==========================================
+
+model Agency {
+  id                 String    @id @default(uuid())
+  name               String
+  slug               String    @unique
+  logoUrl            String?   @map("logo_url")
+  email              String?
+  phone              String?
+  website            String?
+  country            String?
+  city               String?
+  address            String?
+  timezone           String    @default("Asia/Dubai")
+  currency           String    @default("AED")
+  subscriptionPlanId String?   @map("subscription_plan_id")
+  status             String    @default("ACTIVE")
+  companySize        String?   @map("company_size")
+  clerkOrgId         String?   @unique @map("clerk_org_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  users            User[]
+  leads            Lead[]
+  properties       Property[]
+  whatsappAccounts WhatsAppAccount[]
+  subscription     Subscription?
+  settings         AgencySettings?
+  tasks            Task[]
+  branches         AgencyBranch[]
+  conversations    Conversation[]
+  appointments     Appointment[]
+}
+
+model AgencyBranch {
+  id        String  @id @default(uuid())
+  agencyId  String  @map("agency_id")
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  city      String?
+  latitude  Float?
+  longitude Float?
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+}
+
+model AgencySettings {
+  id       String  @id @default(uuid())
+  agencyId String  @unique @map("agency_id")
+  language String  @default("en")
+  timezone String  @default("Asia/Dubai")
+  currency String  @default("AED")
+  theme    String  @default("light")
+  logo     String?
+  favicon  String?
+  data     Json    @default("{}") // Legacy field
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// MODULE 2: AUTHENTICATION
+// ==========================================
+
+model User {
+  id           String    @id @default(uuid())
+  agencyId     String    @map("agency_id")
+  roleId       String?   @map("role_id")
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
+  name         String
+  email        String
+  phone        String?
+  passwordHash String?   @map("password_hash")
+  avatarUrl    String?   @map("avatar_url")
+  clerkUserId  String    @unique @map("clerk_user_id")
+  status       String    @default("ACTIVE")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  agency        Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  role          Role?          @relation(fields: [roleId], references: [id])
+  leads         Lead[]         @relation("AssignedLeads")
+  tasks         Task[]
+  refreshTokens RefreshToken[]
+  loginHistory  LoginHistory[]
+  leadNotes     LeadNote[]
+
+  @@index([agencyId])
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  agencyId    String?          @map("agency_id")
+  name        String
+  description String?
+  permissions RolePermission[]
+  users       User[]
+}
+
+model Permission {
+  id             String           @id @default(uuid())
+  module         String           @default("general")
+  permissionName String           @default("unknown") @map("permission_name")
+  key            String           @unique // Legacy field
+  roles          RolePermission[]
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  ipAddress String?  @map("ip_address")
+  device    String?
+  browser   String?
+  loginTime DateTime @default(now()) @map("login_time")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ==========================================
+// MODULE 3: LEADS
+// ==========================================
+
+model Lead {
+  id             String  @id @default(uuid())
+  agencyId       String  @map("agency_id")
+  assignedUserId String? @map("assigned_user_id")
+  sourceId       String? @map("source_id")
+  statusId       String? @map("status_id")
+
+  firstName      String?  @map("first_name")
+  lastName       String?  @map("last_name")
+  name           String   @default("Unknown")
+  phone          String
+  email          String?
+  nationality    String?
+  budget         Decimal?
+  budgetMin      Decimal? @map("budget_min")
+  budgetMax      Decimal? @map("budget_max")
+  currency       String   @default("AED")
+  propertyType   String?  @map("property_type")
+  bedrooms       Int?
+  bathrooms      Int?
+  location       String?
+  preferredAreas Json?    @map("preferred_areas")
+  timeline       String?
+  timelineDays   Int?     @map("timeline_days")
+  purpose        String?
+  leadScore      Int      @default(0) @map("lead_score")
+  score          Int      @default(0)
+  notes          String?  @db.Text
+
+  status        LeadStatus      @default(NEW)
+  temperature   LeadTemperature @default(COLD)
+  intent        String?
+  paymentType   String?         @map("payment_type")
+  tags          Json?
+  source        String?         @default("whatsapp")
+  lastMessageAt DateTime?       @map("last_message_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  agency       Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  assignedUser User?  @relation("AssignedLeads", fields: [assignedUserId], references: [id])
+
+  tasks         Task[]
+  aiLogs        AIConversation[]
+  conversations Conversation[]
+  leadTags      LeadTag[]
+  leadNotes     LeadNote[]
+  activities    LeadActivity[]
+  appointments  Appointment[]
+
+  @@unique([agencyId, phone])
+  @@index([agencyId, status])
+  @@index([agencyId, temperature, score])
+  @@index([agencyId, lastMessageAt])
+}
+
+model LeadTag {
+  id      String @id @default(uuid())
+  leadId  String @map("lead_id")
+  tagName String @map("tag_name")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model LeadNote {
+  id        String   @id @default(uuid())
+  leadId    String   @map("lead_id")
+  userId    String?  @map("user_id")
+  note      String   @db.Text
+  createdAt DateTime @default(now())
+
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([userId])
+}
+
+model LeadActivity {
+  id        String   @id @default(uuid())
+  leadId    String   @map("lead_id")
+  activity  String
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+// ==========================================
+// MODULE 4: PROPERTIES
+// ==========================================
+
+model Property {
+  id             String         @id @default(uuid())
+  agencyId       String         @map("agency_id")
+  developerId    String?        @map("developer_id")
+  communityId    String?        @map("community_id")
+  title          String
+  slug           String
+  description    String?        @db.Text
+  propertyTypeId String?        @map("property_type_id")
+  status         PropertyStatus @default(AVAILABLE)
+  purpose        String?
+  bedrooms       Int
+  bathrooms      Int
+  area           Float?
+  price          Decimal
+  currency       String         @default("AED")
+  furnishing     String?
+  paymentPlan    String?        @map("payment_plan")
+  latitude       Float?
+  longitude      Float?
+
+  community String? // Legacy
+  developer String? // Legacy
+  amenities Json? // Legacy
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  agency       Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  developerRel Developer? @relation(fields: [developerId], references: [id])
+  communityRel Community? @relation(fields: [communityId], references: [id])
+
+  images         PropertyImage[]
+  documents      PropertyDocument[]
+  amenitiesLinks PropertyAmenityLink[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId, communityId])
+}
+
+model PropertyImage {
+  id         String @id @default(uuid())
+  propertyId String @map("property_id")
+  imageUrl   String @map("image_url")
+  orderNo    Int    @map("order_no")
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model PropertyDocument {
+  id             String  @id @default(uuid())
+  propertyId     String  @map("property_id")
+  brochure       String?
+  floorPlan      String? @map("floor_plan")
+  paymentPlanPdf String? @map("payment_plan_pdf")
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model PropertyAmenityLink {
+  id         String              @id @default(uuid())
+  propertyId String              @map("property_id")
+  amenity    PropertyAmenityEnum
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model Developer {
+  id         String     @id @default(uuid())
+  name       String
+  logo       String?
+  website    String?
+  properties Property[]
+}
+
+model Community {
+  id         String     @id @default(uuid())
+  name       String
+  city       String?
+  properties Property[]
+}
+
+// ==========================================
+// MODULE 5: COMMUNICATION ENGINE
+// ==========================================
+
+model WhatsAppAccount {
+  id                String    @id @default(uuid())
+  agencyId          String    @map("agency_id")
+  phoneNumberId     String    @unique @map("phone_number_id")
+  businessAccountId String    @map("business_account_id")
+  accessTokenEncrypted String @map("access_token") @db.Text
+  tokenExpires      DateTime? @map("token_expires")
+  verifyToken       String    @map("verify_token")
+  status            String    @default("ACTIVE")
+  connectedAt       DateTime  @default(now()) @map("connected_at")
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  agencyId  String   @map("agency_id")
+  leadId    String?  @map("lead_id")
+  status    String   @default("OPEN")
+  channel   String   @default("WHATSAPP")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  messages     Message[]
+  participants ConversationParticipant[]
+  tags         ConversationTag[]
+  summaries    ConversationSummary[]
+  activities   ConversationActivity[]
+  appointments Appointment[]
+
+  @@index([agencyId])
+  @@index([leadId])
+}
+
+model Message {
+  id                String   @id @default(uuid())
+  conversationId    String   @map("conversation_id")
+  agencyId          String   @map("agency_id")
+  sender            String
+  receiver          String
+  body              String   @db.Text
+  direction         String   @default("INBOUND") // INBOUND or OUTBOUND
+  status            String   @default("SENT") // SENT, DELIVERED, READ, FAILED
+  aiGenerated       Boolean  @default(false) @map("ai_generated")
+  providerMessageId String?  @map("provider_message_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  attachments  Attachment[]
+  statuses     MessageStatus[]
+  reactions    MessageReaction[]
+
+  @@index([conversationId])
+  @@index([agencyId, createdAt])
+  @@index([agencyId, direction, createdAt])
+  @@unique([agencyId, providerMessageId])
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  url       String   @db.Text
+  type      String // image, video, document, audio
+  mimeType  String?  @map("mime_type")
+  size      Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  userId         String?  @map("user_id") // Agent or customer id (or phone)
+  phone          String?
+  role           String   @default("CUSTOMER") // AGENT, CUSTOMER, AI
+  joinedAt       DateTime @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model MessageStatus {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  status    String // SENT, DELIVERED, READ, FAILED
+  timestamp DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  emoji     String
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model Template {
+  id        String   @id @default(uuid())
+  agencyId  String   @map("agency_id")
+  name      String
+  language  String   @default("en")
+  category  String // MARKETING, UTILITY, AUTHENTICATION
+  content   String   @db.Text
+  status    String   @default("APPROVED") // PENDING, APPROVED, REJECTED
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([agencyId])
+}
+
+model Broadcast {
+  id           String    @id @default(uuid())
+  agencyId     String    @map("agency_id")
+  campaignId   String?   @map("campaign_id")
+  templateId   String    @map("template_id")
+  name         String
+  audienceSize Int       @default(0) @map("audience_size")
+  sentCount    Int       @default(0) @map("sent_count")
+  status       String    @default("DRAFT") // DRAFT, SCHEDULED, SENDING, COMPLETED
+  scheduledAt  DateTime? @map("scheduled_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([agencyId])
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  agencyId    String   @map("agency_id")
+  name        String
+  description String?  @db.Text
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([agencyId])
+}
+
+model ConversationSummary {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  summary        String   @db.Text
+  intent         String?
+  leadScore      Int?     @map("lead_score")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model LeadConversation {
+  id             String   @id @default(uuid())
+  leadId         String   @map("lead_id")
+  conversationId String   @map("conversation_id")
+  assignedAt     DateTime @default(now()) @map("assigned_at")
+
+  @@index([leadId])
+  @@index([conversationId])
+}
+
+model ConversationTag {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  tag            String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model PropertyShare {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  propertyId     String   @map("property_id")
+  sharedBy       String?  @map("shared_by") // userId
+  sharedAt       DateTime @default(now()) @map("shared_at")
+
+  @@index([conversationId])
+  @@index([propertyId])
+}
+
+model AppointmentMessage {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  appointmentId  String   @map("appointment_id")
+  messageId      String?  @map("message_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([conversationId])
+}
+
+model ConversationActivity {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  type           String // e.g., STATUS_CHANGE, ASSIGNED, NOTE_ADDED
+  details        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model WebhookLog {
+  id        String   @id @default(uuid())
+  agencyId  String?  @map("agency_id")
+  payload   Json
+  event     String
+  status    String   @default("PROCESSED") // RECEIVED, PROCESSED, FAILED
+  error     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([agencyId])
+  @@index([status])
+}
+
+/// Durable, idempotent inbox for signed provider events. A separate worker
+/// claims these rows and retries failures without making Meta wait for AI work.
+model WebhookEvent {
+  id             String    @id @default(uuid())
+  eventKey       String    @unique @map("event_key")
+  payload        Json
+  status         String    @default("PENDING")
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at")
+  lockedAt       DateTime? @map("locked_at")
+  processedAt    DateTime? @map("processed_at")
+  lastError      String?   @db.Text @map("last_error")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, nextAttemptAt])
+}
+
+model AutomationHistory {
+  id          String   @id @default(uuid())
+  agencyId    String   @map("agency_id")
+  triggerType String   @map("trigger_type") // e.g., NO_REPLY_48H
+  targetId    String   @map("target_id") // e.g., leadId or conversationId
+  actionTaken String   @map("action_taken") @db.Text
+  status      String   @default("SUCCESS")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([agencyId])
+}
+
+// ==========================================
+// MODULE 7: AI
+// ==========================================
+
+model AIConversation {
+  id        String   @id @default(uuid())
+  agencyId  String   @map("agency_id")
+  leadId    String   @map("lead_id")
+  provider  String
+  model     String
+  purpose   String
+  input     Json
+  output    Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+model AIMessage {
+  id               String @id @default(uuid())
+  aiConversationId String
+  content          String @db.Text
+}
+
+model AISummary {
+  id        String   @id @default(uuid())
+  leadId    String
+  summary   String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model AIRecommendation {
+  id             String @id @default(uuid())
+  leadId         String
+  recommendation String @db.Text
+}
+
+model AIUsageLog {
+  id       String @id @default(uuid())
+  agencyId String
+  tokens   Int
+}
+
+model AIPromptHistory {
+  id       String @id @default(uuid())
+  agencyId String
+  prompt   String @db.Text
+}
+
+// ==========================================
+// MODULE 8: CALENDAR
+// ==========================================
+
+model Appointment {
+  id             String   @id @default(uuid())
+  agencyId       String   @map("agency_id")
+  leadId         String?  @map("lead_id")
+  conversationId String?  @map("conversation_id")
+  title          String
+  date           DateTime
+  status         String   @default("SCHEDULED") // SCHEDULED, CANCELLED, COMPLETED
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  agency       Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId])
+  @@index([leadId])
+  @@index([conversationId])
+}
+
+model CalendarEvent {
+  id        String   @id @default(uuid())
+  agencyId  String
+  title     String
+  startDate DateTime
+  endDate   DateTime
+}
+
+model Reminder {
+  id       String   @id @default(uuid())
+  agencyId String
+  message  String
+  remindAt DateTime
+}
+
+// ==========================================
+// MODULE 9: TASKS
+// ==========================================
+
+model Task {
+  id          String       @id @default(uuid())
+  agencyId    String       @map("agency_id")
+  leadId      String?      @map("lead_id")
+  userId      String?      @map("user_id")
+  title       String
+  description String?      @db.Text
+  dueAt       DateTime?    @map("due_at")
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  source      String       @default("manual")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  comments   TaskComment[]
+  checklists TaskChecklist[]
+
+  @@index([agencyId, status])
+  @@index([agencyId, status, dueAt])
+}
+
+model TaskComment {
+  id      String @id @default(uuid())
+  taskId  String
+  comment String @db.Text
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model TaskChecklist {
+  id     String  @id @default(uuid())
+  taskId String
+  item   String
+  isDone Boolean @default(false)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// MODULE 10: SALES PIPELINE
+// ==========================================
+
+model Pipeline {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model PipelineStage {
+  id         String @id @default(uuid())
+  pipelineId String
+  name       String
+  order      Int
+}
+
+model Deal {
+  id       String  @id @default(uuid())
+  agencyId String
+  amount   Decimal
+}
+
+model Offer {
+  id     String  @id @default(uuid())
+  dealId String
+  amount Decimal
+}
+
+model Negotiation {
+  id     String @id @default(uuid())
+  dealId String
+  status String
+}
+
+model Commission {
+  id     String  @id @default(uuid())
+  dealId String
+  userId String
+  amount Decimal
+}
+
+// ==========================================
+// MODULE 11: MARKETING
+// ==========================================
+
+model SocialAccount {
+  id       String @id @default(uuid())
+  agencyId String
+  platform String
+}
+
+model GeneratedPost {
+  id       String @id @default(uuid())
+  agencyId String
+  content  String @db.Text
+}
+
+model ScheduledPost {
+  id       String   @id @default(uuid())
+  agencyId String
+  postAt   DateTime
+}
+
+model EmailTemplate {
+  id       String @id @default(uuid())
+  agencyId String
+  subject  String
+  body     String @db.Text
+}
+
+// ==========================================
+// MODULE 12: BILLING
+// ==========================================
+
+model Plan {
+  id    String  @id @default(uuid())
+  name  String // Solo, Company, Agency
+  price Decimal
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  agencyId             String             @unique @map("agency_id")
+  stripeCustomerId     String             @default("") @map("stripe_customer_id")
+  stripeSubscriptionId String?            @map("stripe_subscription_id")
+  plan                 String             @default("trial")
+  status               SubscriptionStatus @default(TRIALING)
+  trialEndsAt          DateTime?          @map("trial_ends_at")
+  agency               Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id       String  @id @default(uuid())
+  agencyId String
+  amount   Decimal
+}
+
+model Payment {
+  id        String  @id @default(uuid())
+  invoiceId String
+  amount    Decimal
+}
+
+model Coupon {
+  id   String @id @default(uuid())
+  code String @unique
+}
+
+// ==========================================
+// MODULE 13: ANALYTICS
+// ==========================================
+
+model DashboardStat {
+  id       String @id @default(uuid())
+  agencyId String
+  metric   String
+  value    Float
+}
+
+model LeadAnalytics {
+  id       String @id @default(uuid())
+  agencyId String
+  data     Json
+}
+
+model SalesAnalytics {
+  id       String @id @default(uuid())
+  agencyId String
+  data     Json
+}
+
+model PropertyAnalytics {
+  id       String @id @default(uuid())
+  agencyId String
+  data     Json
+}
+
+model AIAnalytics {
+  id       String @id @default(uuid())
+  agencyId String
+  data     Json
+}
+
+// ==========================================
+// MODULE 14: NOTIFICATIONS
+// ==========================================
+
+model Notification {
+  id      String  @id @default(uuid())
+  userId  String
+  message String  @db.Text
+  isRead  Boolean @default(false)
+}
+
+model NotificationPreference {
+  id      String  @id @default(uuid())
+  userId  String
+  type    String
+  enabled Boolean @default(true)
+}
+
+// ==========================================
+// MODULE 15: TEAMS
+// ==========================================
+
+model Department {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model Team {
+  id           String @id @default(uuid())
+  departmentId String
+  name         String
+}
+
+model TeamMember {
+  id     String @id @default(uuid())
+  teamId String
+  userId String
+}
+
+model Attendance {
+  id     String   @id @default(uuid())
+  userId String
+  date   DateTime
+}
+
+model LeaveRequest {
+  id     String @id @default(uuid())
+  userId String
+  status String
+}
+
+// ==========================================
+// MODULE 16: FILE MANAGEMENT
+// ==========================================
+
+model Folder {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model File {
+  id       String  @id @default(uuid())
+  folderId String?
+  name     String
+  url      String
+}
+
+model Upload {
+  id       String @id @default(uuid())
+  agencyId String
+  url      String
+}
+
+model MediaLibrary {
+  id       String @id @default(uuid())
+  agencyId String
+  url      String
+}
+
+// ==========================================
+// MODULE 17: INTEGRATIONS
+// ==========================================
+
+model Integration {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model IntegrationToken {
+  id            String @id @default(uuid())
+  integrationId String
+  token         String
+}
+
+model Webhook {
+  id       String @id @default(uuid())
+  agencyId String
+  url      String
+}
+
+model ApiKey {
+  id       String @id @default(uuid())
+  agencyId String
+  key      String @unique
+}
+
+// ==========================================
+// MODULE 18: SUPPORT
+// ==========================================
+
+model Ticket {
+  id       String @id @default(uuid())
+  agencyId String
+  subject  String
+  status   String
+}
+
+model TicketComment {
+  id       String @id @default(uuid())
+  ticketId String
+  comment  String @db.Text
+}
+
+model KnowledgeBase {
+  id      String @id @default(uuid())
+  title   String
+  content String @db.Text
+}
+
+// ==========================================
+// MODULE 19: AUDIT
+// ==========================================
+
+model ActivityLog {
+  id       String @id @default(uuid())
+  agencyId String
+  action   String
+}
+
+model AuditLog {
+  id       String @id @default(uuid())
+  agencyId String
+  details  Json
+}
+
+model DeletedRecord {
+  id       String @id @default(uuid())
+  table    String
+  recordId String
+}
+
+// ==========================================
+// MODULE 20: SYSTEM
+// ==========================================
+
+model Country {
+  id   String @id @default(uuid())
+  name String
+}
+
+model State {
+  id        String @id @default(uuid())
+  countryId String
+  name      String
+}
+
+model City {
+  id      String @id @default(uuid())
+  stateId String
+  name    String
+}
+
+model Currency {
+  id   String @id @default(uuid())
+  code String @unique
+}
+
+model Language {
+  id   String @id @default(uuid())
+  code String @unique
+}
+
+model SystemSettings {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+}
+
+// ==========================================
+// MODULE 21: FUTURE ENTERPRISE FEATURES
+// ==========================================
+
+model Buyer {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model Seller {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model Owner {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model Referral {
+  id       String @id @default(uuid())
+  agencyId String
+  details  String
+}
+
+model Contract {
+  id       String @id @default(uuid())
+  agencyId String
+  status   String
+}
+
+model ContractDocument {
+  id         String @id @default(uuid())
+  contractId String
+  url        String
+}
+
+model PropertyVisit {
+  id         String @id @default(uuid())
+  propertyId String
+  leadId     String
+}
+
+model SavedProperty {
+  id         String @id @default(uuid())
+  userId     String
+  propertyId String
+}
+
+model Favorite {
+  id     String @id @default(uuid())
+  userId String
+  itemId String
+}
+
+model Review {
+  id       String @id @default(uuid())
+  agencyId String
+  rating   Int
+}
+
+model Rating {
+  id     String @id @default(uuid())
+  userId String
+  score  Int
+}
+
+model WorkflowAutomation {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model AutomationLog {
+  id           String @id @default(uuid())
+  automationId String
+  status       String
+}
+
+model ChatbotTraining {
+  id       String @id @default(uuid())
+  agencyId String
+  data     Json
+}
+
+model KnowledgeBaseArticle {
+  id    String @id @default(uuid())
+  title String
+}
+
+model CustomField {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
+
+model CustomModule {
+  id       String @id @default(uuid())
+  agencyId String
+  name     String
+}
