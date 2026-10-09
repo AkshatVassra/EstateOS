@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@estateos/database";
-import { decryptWhatsAppToken } from "../token-crypto";
+import { decryptWhatsAppToken, isEncryptedWhatsAppToken } from "../token-crypto";
 
 export class WhatsappRepository {
   static async create(data: Prisma.WhatsAppAccountUncheckedCreateInput) {
@@ -24,8 +24,19 @@ export class WhatsappRepository {
 
   static async getActiveAccessToken(phoneNumberId: string): Promise<string | null> {
     const account = await this.findByPhoneNumberId(phoneNumberId);
-    if (!account) return null;
-    return decryptWhatsAppToken(account.accessTokenEncrypted);
+    if (account?.accessTokenEncrypted) {
+      try {
+        if (isEncryptedWhatsAppToken(account.accessTokenEncrypted)) {
+          return decryptWhatsAppToken(account.accessTokenEncrypted);
+        }
+        if (account.accessTokenEncrypted.length > 50) {
+          return account.accessTokenEncrypted;
+        }
+      } catch (err) {
+        console.warn("[WhatsApp] Could not decrypt stored token, falling back to environment variable:", err instanceof Error ? err.message : err);
+      }
+    }
+    return process.env.META_ACCESS_TOKEN || null;
   }
 
   static async update(id: string, data: Prisma.WhatsAppAccountUncheckedUpdateInput) {

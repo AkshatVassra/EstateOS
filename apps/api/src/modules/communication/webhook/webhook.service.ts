@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/prisma";
 import { WhatsappRepository } from "../repositories/whatsapp.repository";
 import { MessageRepository } from "../repositories/message.repository";
 import { MetaWebhookPayload, MetaValue } from "../dto/meta-webhook.dto";
@@ -53,13 +54,19 @@ export class WebhookService {
     const phoneNumberId = metadata.phone_number_id;
     
     // 1. Find the agency account based on phone number id
-    const account = await WhatsappRepository.findByPhoneNumberId(phoneNumberId);
+    let account = await WhatsappRepository.findByPhoneNumberId(phoneNumberId);
+    let agencyId: string;
     if (!account) {
-      console.error("No active WhatsApp account found for inbound Meta event.");
-      return;
+      console.warn(`[Webhook] No WhatsApp account found for phone ${phoneNumberId}, falling back to primary agency.`);
+      const primaryAgency = await prisma.agency.findFirst();
+      if (!primaryAgency) {
+        console.error("No active agency found for inbound Meta event.");
+        return;
+      }
+      agencyId = primaryAgency.id;
+    } else {
+      agencyId = account.agencyId;
     }
-
-    const agencyId = account.agencyId;
     const messages = value.messages || [];
     const contacts = value.contacts || [];
     

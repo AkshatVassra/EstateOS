@@ -31,7 +31,7 @@ export class AIPipelineService {
       return null;
     }
     const genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const modelName = process.env.GEMINI_MODEL || "gemini-3.5-flash";
     return genAI.getGenerativeModel({ model: modelName });
   }
 
