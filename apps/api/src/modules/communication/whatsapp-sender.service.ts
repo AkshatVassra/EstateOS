@@ -47,7 +47,8 @@ export class WhatsAppSenderService {
 
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(`WhatsApp Graph API rejected the message (${response.status}).`);
+      console.error("[WhatsApp] Meta API error payload:", JSON.stringify(payload));
+      throw new Error(`WhatsApp Graph API rejected the message (${response.status}): ${JSON.stringify(payload)}`);
     }
 
     const providerMessageId = this.providerMessageId(payload);
