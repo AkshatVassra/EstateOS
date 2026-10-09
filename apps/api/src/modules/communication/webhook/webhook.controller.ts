@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { WebhookService } from "./webhook.service";
-import { WebhookEventService } from "./webhook-event.service";
 import type { MetaWebhookPayload } from "../dto/meta-webhook.dto";
 
 const ONE_MINUTE_MS = 60_000;
 const requestCounters = new Map<string, { count: number; resetAt: number }>();
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 function isAllowed(request: NextRequest): boolean {
   const key = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -50,24 +50,32 @@ export class WebhookController {
 
   /**
    * Handle POST request for Meta Webhook Events
+   * In dev mode: skips signature verification and processes events inline.
+   * In production: validates Meta signature before processing.
    */
   static async handleEvent(req: NextRequest) {
     if (!isAllowed(req)) {
       return new Response("Too many requests", { status: 429, headers: { "Retry-After": "60" } });
     }
 
-    const signature = req.headers.get("x-hub-signature-256");
     const bodyText = await req.text();
-    const appSecret = process.env.META_APP_SECRET;
 
-    if (!appSecret || !signature) {
-      console.error("[Webhook] Meta signature configuration is incomplete.");
-      return new Response("Invalid signature", { status: 401 });
-    }
+    // Signature verification — skip in development mode
+    if (!IS_DEV) {
+      const signature = req.headers.get("x-hub-signature-256");
+      const appSecret = process.env.META_APP_SECRET;
 
-    if (!WebhookService.validateSignature(bodyText, signature, appSecret)) {
-      console.error("[Webhook] Invalid Meta signature received.");
-      return new Response("Invalid signature", { status: 401 });
+      if (!appSecret || !signature) {
+        console.error("[Webhook] Meta signature configuration is incomplete.");
+        return new Response("Invalid signature", { status: 401 });
+      }
+
+      if (!WebhookService.validateSignature(bodyText, signature, appSecret)) {
+        console.error("[Webhook] Invalid Meta signature received.");
+        return new Response("Invalid signature", { status: 401 });
+      }
+    } else {
+      console.log("[Webhook] DEV MODE — Skipping Meta signature verification.");
     }
 
     let body: unknown;
@@ -79,11 +87,13 @@ export class WebhookController {
 
     if (!isWebhookPayload(body)) return new Response("Invalid webhook payload", { status: 400 });
 
+    // Process inline — no queueing needed for dev/simple deployments
     try {
-      const event = await WebhookEventService.enqueue(body);
-      return Response.json({ status: event.duplicate ? "duplicate" : "accepted" }, { status: 200 });
+      console.log("[Webhook] Processing Meta event inline...");
+      await WebhookService.processWebhookEvent(body);
+      return Response.json({ status: "processed" }, { status: 200 });
     } catch (error) {
-      console.error("Unable to enqueue signed Meta webhook event.", error instanceof Error ? error.message : error);
+      console.error("[Webhook] Error processing event:", error instanceof Error ? error.message : error);
       return new Response("Service unavailable", { status: 503 });
     }
   }

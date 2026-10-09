@@ -21,9 +21,13 @@ export class WhatsAppSenderService {
       throw new WhatsAppTemplateRequiredError();
     }
 
-    const accessToken = await WhatsappRepository.getActiveAccessToken(input.phoneNumberId);
+    // Try DB first, fall back to env var
+    let accessToken = await WhatsappRepository.getActiveAccessToken(input.phoneNumberId);
     if (!accessToken) {
-      throw new Error(`No active WhatsApp account is configured for phone number ${input.phoneNumberId}.`);
+      accessToken = process.env.META_ACCESS_TOKEN ?? null;
+    }
+    if (!accessToken) {
+      throw new Error(`No active WhatsApp account or META_ACCESS_TOKEN configured for phone number ${input.phoneNumberId}.`);
     }
 
     const apiVersion = process.env.WHATSAPP_API_VERSION ?? "v21.0";
