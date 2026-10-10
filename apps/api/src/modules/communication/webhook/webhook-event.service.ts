@@ -20,7 +20,10 @@ export class WebhookEventService {
       where: { eventKey },
       select: { id: true },
     });
-    if (existing) return { id: existing.id, duplicate: true };
+    if (existing) {
+      console.log(`[WebhookEvent] Duplicate event detected: ${eventKey}`);
+      return { id: existing.id, duplicate: true };
+    }
 
     try {
       const event = await prisma.webhookEvent.create({
@@ -30,6 +33,7 @@ export class WebhookEventService {
         },
         select: { id: true },
       });
+      console.log(`[WebhookEvent] Event enqueued: ${event.id}`);
       return { id: event.id, duplicate: false };
     } catch (error) {
       if (this.isUniqueConstraintError(error)) {
@@ -37,20 +41,26 @@ export class WebhookEventService {
           where: { eventKey },
           select: { id: true },
         });
+        console.log(`[WebhookEvent] Duplicate event on constraint: ${eventKey}`);
         return { id: duplicate.id, duplicate: true };
       }
+      console.error("[WebhookEvent] Failed to enqueue event:", error instanceof Error ? error.message : error);
       throw error;
     }
   }
 
   static async processAvailable(limit = 20): Promise<number> {
-    await prisma.webhookEvent.updateMany({
+    // Release stale locks
+    const staleRelease = await prisma.webhookEvent.updateMany({
       where: {
         status: "PROCESSING",
         lockedAt: { lt: new Date(Date.now() - STALE_LOCK_MS) },
       },
       data: { status: "RETRY", lockedAt: null, nextAttemptAt: new Date() },
     });
+    if (staleRelease.count > 0) {
+      console.log(`[WebhookEvent] Released ${staleRelease.count} stale processing locks`);
+    }
 
     let processed = 0;
     while (processed < limit && (await this.processNext())) {
@@ -75,28 +85,39 @@ export class WebhookEventService {
       where: { id: candidate.id, status: { in: ["PENDING", "RETRY"] } },
       data: { status: "PROCESSING", lockedAt: now },
     });
-    if (claim.count === 0) return true;
+    if (claim.count === 0) return true; // Another worker claimed it
 
     const event = await prisma.webhookEvent.findUniqueOrThrow({ where: { id: candidate.id } });
+    console.log(`[WebhookEvent] Processing event ${event.id} (attempt ${event.attempts + 1}/${MAX_ATTEMPTS})`);
+
     try {
       await WebhookService.processWebhookEvent(event.payload as unknown as MetaWebhookPayload);
       await prisma.webhookEvent.update({
         where: { id: event.id },
         data: { status: "PROCESSED", processedAt: new Date(), lockedAt: null, lastError: null },
       });
+      console.log(`[WebhookEvent] Successfully processed event ${event.id}`);
     } catch (error) {
       const attempts = event.attempts + 1;
       const deadLetter = attempts >= MAX_ATTEMPTS;
+      const nextAttemptAt = deadLetter ? event.nextAttemptAt : this.retryAt(attempts);
+
       await prisma.webhookEvent.update({
         where: { id: event.id },
         data: {
           attempts,
           status: deadLetter ? "DEAD_LETTER" : "RETRY",
           lockedAt: null,
-          nextAttemptAt: deadLetter ? event.nextAttemptAt : this.retryAt(attempts),
+          nextAttemptAt: nextAttemptAt,
           lastError: this.safeErrorMessage(error),
         },
       });
+
+      if (deadLetter) {
+        console.error(`[WebhookEvent] Event ${event.id} moved to DEAD_LETTER after ${MAX_ATTEMPTS} attempts:`, this.safeErrorMessage(error));
+      } else {
+        console.warn(`[WebhookEvent] Event ${event.id} failed (attempt ${attempts}/${MAX_ATTEMPTS}), retrying at ${nextAttemptAt.toISOString()}:`, this.safeErrorMessage(error));
+      }
     }
     return true;
   }

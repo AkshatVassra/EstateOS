@@ -1,23 +1,15 @@
 import { NextRequest } from "next/server";
 import { WebhookService } from "./webhook.service";
+import { rateLimiter } from "./rate-limiter";
 import type { MetaWebhookPayload } from "../dto/meta-webhook.dto";
 
 const ONE_MINUTE_MS = 60_000;
-const requestCounters = new Map<string, { count: number; resetAt: number }>();
-const IS_DEV = process.env.NODE_ENV !== "production";
 
-function isAllowed(request: NextRequest): boolean {
+async function isAllowed(request: NextRequest): Promise<boolean> {
   const key = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const now = Date.now();
   const limit = Number.parseInt(process.env.WEBHOOK_RATE_LIMIT_PER_MINUTE ?? "120", 10);
-  const current = requestCounters.get(key);
-  if (!current || current.resetAt <= now) {
-    requestCounters.set(key, { count: 1, resetAt: now + ONE_MINUTE_MS });
-    return true;
-  }
-  if (current.count >= limit) return false;
-  current.count += 1;
-  return true;
+  const result = await rateLimiter.check(key, limit, ONE_MINUTE_MS);
+  return result.allowed;
 }
 
 function isWebhookPayload(value: unknown): value is MetaWebhookPayload {
@@ -50,32 +42,27 @@ export class WebhookController {
 
   /**
    * Handle POST request for Meta Webhook Events
-   * In dev mode: skips signature verification and processes events inline.
-   * In production: validates Meta signature before processing.
+   * Validates Meta signature before processing and enqueues for async processing.
    */
   static async handleEvent(req: NextRequest) {
-    if (!isAllowed(req)) {
+    if (!(await isAllowed(req))) {
       return new Response("Too many requests", { status: 429, headers: { "Retry-After": "60" } });
     }
 
     const bodyText = await req.text();
 
-    // Signature verification — skip in development mode
-    if (!IS_DEV) {
-      const signature = req.headers.get("x-hub-signature-256");
-      const appSecret = process.env.META_APP_SECRET;
+    // Signature verification — always required in production
+    const signature = req.headers.get("x-hub-signature-256");
+    const appSecret = process.env.META_APP_SECRET;
 
-      if (!appSecret || !signature) {
-        console.error("[Webhook] Meta signature configuration is incomplete.");
-        return new Response("Invalid signature", { status: 401 });
-      }
+    if (!appSecret || !signature) {
+      console.error("[Webhook] Meta signature configuration is incomplete.");
+      return new Response("Invalid signature", { status: 401 });
+    }
 
-      if (!WebhookService.validateSignature(bodyText, signature, appSecret)) {
-        console.error("[Webhook] Invalid Meta signature received.");
-        return new Response("Invalid signature", { status: 401 });
-      }
-    } else {
-      console.log("[Webhook] DEV MODE — Skipping Meta signature verification.");
+    if (!WebhookService.validateSignature(bodyText, signature, appSecret)) {
+      console.error("[Webhook] Invalid Meta signature received.");
+      return new Response("Invalid signature", { status: 401 });
     }
 
     let body: unknown;
@@ -87,13 +74,14 @@ export class WebhookController {
 
     if (!isWebhookPayload(body)) return new Response("Invalid webhook payload", { status: 400 });
 
-    // Process inline — no queueing needed for dev/simple deployments
+    // Enqueue for async processing via worker
     try {
-      console.log("[Webhook] Processing Meta event inline...");
-      await WebhookService.processWebhookEvent(body);
-      return Response.json({ status: "processed" }, { status: 200 });
+      const { WebhookEventService } = await import("./webhook-event.service");
+      const result = await WebhookEventService.enqueue(body);
+      console.log(`[Webhook] Event enqueued: ${result.id} (duplicate: ${result.duplicate})`);
+      return Response.json({ status: "enqueued", eventId: result.id, duplicate: result.duplicate }, { status: 200 });
     } catch (error) {
-      console.error("[Webhook] Error processing event:", error instanceof Error ? error.message : error);
+      console.error("[Webhook] Error enqueueing event:", error instanceof Error ? error.message : error);
       return new Response("Service unavailable", { status: 503 });
     }
   }

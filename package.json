@@ -11,7 +11,7 @@
         "dev:api": "npm run dev --workspace=api",
         "build": "npm run build --workspace=@estateos/web && npm run build --workspace=api",
         "lint": "npm run lint --workspace=@estateos/web && npm run lint --workspace=api",
-        "test:core": "npx tsx --test apps/api/src/modules/lead/lead-scoring.service.test.ts apps/api/src/modules/communication/webhook/webhook.service.test.ts apps/api/src/modules/property/property-matching.service.test.ts apps/api/src/modules/communication/phone.test.ts apps/api/src/modules/communication/token-crypto.test.ts apps/api/src/modules/communication/whatsapp-sender.service.test.ts",
+        "test:core": "npx tsx --test apps/api/src/modules/lead/lead-scoring.service.test.ts apps/api/src/modules/communication/webhook/webhook.service.test.ts apps/api/src/modules/communication/webhook/webhook.integration.test.ts apps/api/src/modules/property/property-matching.service.test.ts apps/api/src/modules/communication/phone.test.ts apps/api/src/modules/communication/token-crypto.test.ts apps/api/src/modules/communication/whatsapp-sender.service.test.ts",
         "db:generate": "npm run db:generate --workspace=@estateos/database",
         "db:push": "npm run db:push --workspace=@estateos/database",
         "db:seed": "npm run db:seed --workspace=@estateos/database"

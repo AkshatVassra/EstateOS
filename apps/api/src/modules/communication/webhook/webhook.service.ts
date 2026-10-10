@@ -52,7 +52,7 @@ export class WebhookService {
   private static async processIncomingMessage(value: MetaValue): Promise<void> {
     const metadata = value.metadata;
     const phoneNumberId = metadata.phone_number_id;
-    
+
     // 1. Find the agency account based on phone number id
     let account = await WhatsappRepository.findByPhoneNumberId(phoneNumberId);
     let agencyId: string;
@@ -60,8 +60,8 @@ export class WebhookService {
       console.warn(`[Webhook] No WhatsApp account found for phone ${phoneNumberId}, falling back to primary agency.`);
       const primaryAgency = await prisma.agency.findFirst();
       if (!primaryAgency) {
-        console.error("No active agency found for inbound Meta event.");
-        return;
+        console.error("[Webhook] No active agency found for inbound Meta event.");
+        throw new Error("No active agency found for inbound Meta event");
       }
       agencyId = primaryAgency.id;
     } else {
@@ -69,12 +69,12 @@ export class WebhookService {
     }
     const messages = value.messages || [];
     const contacts = value.contacts || [];
-    
+
     // Process each message
     for (const message of messages) {
       const contact = contacts.find((c) => c.wa_id === message.from);
       const senderPhone = message.from;
-      
+
       // Extract message content
       let textBody = "";
       if (message.type === "text" && message.text) {
@@ -88,14 +88,20 @@ export class WebhookService {
       }
 
       // Delegate to V2 Communication Orchestrator
-      await CommunicationOrchestrator.processInboundMessage(
-        agencyId,
-        senderPhone,
-        textBody,
-        message.id,
-        phoneNumberId,
-        contact?.profile.name
-      );
+      try {
+        await CommunicationOrchestrator.processInboundMessage(
+          agencyId,
+          senderPhone,
+          textBody,
+          message.id,
+          phoneNumberId,
+          contact?.profile.name
+        );
+        console.log(`[Webhook] Successfully processed message ${message.id} for agency ${agencyId}`);
+      } catch (error) {
+        console.error(`[Webhook] Failed to process message ${message.id} for agency ${agencyId}:`, error instanceof Error ? error.message : error);
+        throw error; // Re-throw to trigger retry in worker
+      }
     }
   }
 
