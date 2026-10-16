@@ -312,14 +312,9 @@ Ensure these indexes exist (defined in schema.prisma):
 
 At scale (100 agencies, 100k messages/month):
 
-**Meta Direct (Current Setup):**
+**Meta Cloud API (Current Setup):**
 - Meta fees: ~$1,570/mo
 - Infrastructure: ~$500/mo
-- **Total: ~$2,070/mo**
-
-**Twilio (Alternative):**
-- Meta fees: ~$1,570/mo
-- Twilio markup: ~$500/mo
 - **Total: ~$2,070/mo**
 
 **360dialog (Not recommended for SaaS):**
@@ -327,7 +322,7 @@ At scale (100 agencies, 100k messages/month):
 - Meta fees: ~$1,570/mo
 - **Total: ~$6,870/mo**
 
-**Recommendation:** Stay with Meta Direct for lowest cost and full control.
+**Recommendation:** Stay with Meta Cloud API for lowest cost and full control.
 
 ## Support
 

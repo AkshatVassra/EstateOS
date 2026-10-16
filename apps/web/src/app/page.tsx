@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 
 import { Hero } from "@/components/marketing/hero";
 import { Problem } from "@/components/marketing/problem";
@@ -44,23 +43,15 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <Show when="signed-out">
-              <SignInButton mode="modal">
-                <Button variant="ghost" className="hidden sm:inline-flex">Sign In</Button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-5">
-                  Get Started
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </SignUpButton>
-            </Show>
-            <Show when="signed-in">
-              <Link href="/command-center">
-                <Button variant="ghost" className="hidden sm:inline-flex">Dashboard</Button>
-              </Link>
-              <UserButton />
-            </Show>
+            <Link href="/login">
+              <Button variant="ghost" className="hidden sm:inline-flex">Sign In</Button>
+            </Link>
+            <Link href="/register">
+              <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-5">
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </nav>

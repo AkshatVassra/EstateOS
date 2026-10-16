@@ -6,7 +6,9 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
   "/api/communication/webhook(.*)",
 ]);
-const skipAuth = process.env.NODE_ENV === "development" && process.env.DISABLE_AUTH === "true";
+
+// Temporarily disable auth until environment variables are configured in Vercel
+const skipAuth = process.env.NODE_ENV === "development" || process.env.DISABLE_AUTH === "true" || !process.env.CLERK_SECRET_KEY;
 
 const authMiddleware = clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {

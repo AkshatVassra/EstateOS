@@ -49,7 +49,7 @@ export default function NotificationsPage() {
     { id: "ntf-1", message: "🔥 URGENT: New VIP Lead Inquiry ($15M budget) for Palm Jumeirah Signature Villa assigned to your queue.", channel: "WHATSAPP", priority: "URGENT", read: false, createdAt: new Date(Date.now() - 60000 * 12).toISOString() },
     { id: "ntf-2", message: "📄 SPA Contract #SPA-8821 for Burj Khalifa penthouse approved by Emirates NBD escrow team.", channel: "EMAIL", priority: "HIGH", read: false, createdAt: new Date(Date.now() - 3600000 * 2).toISOString() },
     { id: "ntf-3", message: "🤖 AI Studio generated 24 tailored property brochures for Dubai Marina Q3 investment presentation.", channel: "IN_APP", priority: "MEDIUM", read: true, createdAt: new Date(Date.now() - 86400000 * 1).toISOString() },
-    { id: "ntf-4", message: "⚠️ System Telemetry Notice: Twilio WhatsApp Gateway re-authenticated successfully with zero packet loss.", channel: "ALL", priority: "LOW", read: true, createdAt: new Date(Date.now() - 86400000 * 2).toISOString() }
+    { id: "ntf-4", message: "⚠️ System Telemetry Notice: Meta WhatsApp Cloud API webhook re-authenticated successfully with zero packet loss.", channel: "ALL", priority: "LOW", read: true, createdAt: new Date(Date.now() - 86400000 * 2).toISOString() }
   ];
 
   const filteredNotifications = notifications.filter((ntf: any) => {

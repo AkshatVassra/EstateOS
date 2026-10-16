@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
-import { ClerkProvider } from "@clerk/nextjs";
+import { AuthProvider } from "@/lib/auth-context";
 import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 
@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <AuthProvider>
       <html lang="en" suppressHydrationWarning>
         <body className="font-sans">
           <QueryProvider>
@@ -25,6 +25,6 @@ export default function RootLayout({
           </QueryProvider>
         </body>
       </html>
-    </ClerkProvider>
+    </AuthProvider>
   );
 }

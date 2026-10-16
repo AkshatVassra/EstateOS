@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@estateos/database";
 import { Prisma } from "@estateos/database";
 
 export class MessageRepository {

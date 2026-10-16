@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 
 export function MarketingHeader() {
   return (
@@ -24,20 +23,12 @@ export function MarketingHeader() {
           </Link>
         </nav>
         <div className="flex items-center gap-2">
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <Button variant="ghost">Log in</Button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <Button variant="accent">Start free trial</Button>
-            </SignUpButton>
-          </Show>
-          <Show when="signed-in">
-            <Link href="/command-center">
-              <Button variant="ghost">Dashboard</Button>
-            </Link>
-            <UserButton />
-          </Show>
+          <Link href="/login">
+            <Button variant="ghost">Log in</Button>
+          </Link>
+          <Link href="/register">
+            <Button variant="accent">Start free trial</Button>
+          </Link>
         </div>
       </div>
     </header>

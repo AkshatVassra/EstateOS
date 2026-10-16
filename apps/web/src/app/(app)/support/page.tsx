@@ -39,7 +39,7 @@ export default function SupportPage() {
 
   const tickets = Array.isArray(ticketsData) ? ticketsData : [];
   const articles = Array.isArray(kbData) ? kbData : [
-    { id: "1", title: "Configuring WhatsApp Multi-Channel AI Agent", category: "AI Studio", readTime: "4 min read", excerpt: "Learn how to connect your Twilio or WhatsApp Business API to EstateOS autonomous lead nurturer." },
+    { id: "1", title: "Configuring Meta WhatsApp Cloud API", category: "AI Studio", readTime: "4 min read", excerpt: "Learn how to connect your Meta WhatsApp Business API to EstateOS autonomous lead nurturer." },
     { id: "2", title: "Setting up Custom VIP Property Showings", category: "Operations", readTime: "3 min read", excerpt: "Step-by-step guide on creating calendar slots and assigning concierge agents to ultra-luxury listings." },
     { id: "3", title: "Managing Broker Commission Tiers & Team Roles", category: "Team Admin", readTime: "5 min read", excerpt: "How to configure revenue splits, assign manager permissions, and monitor agent conversion metrics." },
     { id: "4", title: "Live Telemetry & API Webhook Verification", category: "Developer", readTime: "6 min read", excerpt: "Troubleshooting real-time data syncs and monitoring API response times in your Command Center." }

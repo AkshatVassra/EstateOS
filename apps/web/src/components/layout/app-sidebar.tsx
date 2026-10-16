@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { UserButton } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth-context";
 
 const nav = [
   { href: "/command-center", label: "Command Center", icon: Zap, group: "Core" },
@@ -48,6 +48,7 @@ const nav = [
 ];
 
 export function AppSidebar() {
+  const { user, signOut } = useAuth();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -55,6 +56,17 @@ export function AppSidebar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      if (signOut) {
+        await signOut();
+      }
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
 
   const groupedNav = nav.reduce((acc, item) => {
     if (!acc[item.group]) {
@@ -157,7 +169,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <BellIcon className="h-5 w-5" />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-danger" />
             </Button>
-            <UserButton />
           </div>
         </header>
         <main className="flex-1 overflow-auto p-8">

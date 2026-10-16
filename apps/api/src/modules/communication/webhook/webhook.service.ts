@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@estateos/database";
 import { WhatsappRepository } from "../repositories/whatsapp.repository";
 import { MessageRepository } from "../repositories/message.repository";
 import { MetaWebhookPayload, MetaValue } from "../dto/meta-webhook.dto";

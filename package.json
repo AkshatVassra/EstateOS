@@ -10,6 +10,8 @@
         "dev:web": "npm run dev --workspace=@estateos/web",
         "dev:api": "npm run dev --workspace=api",
         "build": "npm run build --workspace=@estateos/web && npm run build --workspace=api",
+        "build:web": "npm run build --workspace=@estateos/web",
+        "build:api": "npm run build --workspace=api",
         "lint": "npm run lint --workspace=@estateos/web && npm run lint --workspace=api",
         "test:core": "npx tsx --test apps/api/src/modules/lead/lead-scoring.service.test.ts apps/api/src/modules/communication/webhook/webhook.service.test.ts apps/api/src/modules/communication/webhook/webhook.integration.test.ts apps/api/src/modules/property/property-matching.service.test.ts apps/api/src/modules/communication/phone.test.ts apps/api/src/modules/communication/token-crypto.test.ts apps/api/src/modules/communication/whatsapp-sender.service.test.ts",
         "db:generate": "npm run db:generate --workspace=@estateos/database",
@@ -18,5 +20,14 @@
     },
     "devDependencies": {
         "concurrently": "^10.0.4"
+    },
+    "dependencies": {
+        "@ai-sdk/anthropic": "^4.0.78",
+        "@ai-sdk/google": "^4.0.93",
+        "@ai-sdk/openai": "^4.0.91",
+        "@google/generative-ai": "^0.24.1",
+        "anthropic": "^0.0.0",
+        "openai": "^7.32.0",
+        "svix": "^2.8.0"
     }
 }

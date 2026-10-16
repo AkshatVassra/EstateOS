@@ -1,31 +1,59 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { supabase } from "@/lib/supabase";
 
 export function useLeads() {
-  const api = useApiClient();
-
   return useQuery({
     queryKey: ["leads"],
-    queryFn: () => api.get("/leads"),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('Lead')
+        .select('*')
+        .order('createdAt', { ascending: false })
+        .limit(50)
+      
+      if (error) throw error
+      return data
+    },
   });
 }
 
 export function useLead(id: string) {
-  const api = useApiClient();
-
   return useQuery({
     queryKey: ["leads", id],
-    queryFn: () => api.get(`/leads/${id}`),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('Lead')
+        .select('*')
+        .eq('id', id)
+        .single()
+      
+      if (error) throw error
+      return data
+    },
     enabled: !!id,
   });
 }
 
 export function useCreateLead() {
-  const api = useApiClient();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: any) => api.post("/leads", data),
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from('Lead')
+        .insert({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          email: data.email,
+          budget: data.budget,
+          source: data.source,
+          status: 'NEW',
+          temperature: 'COLD',
+        })
+      
+      if (error) throw error
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
