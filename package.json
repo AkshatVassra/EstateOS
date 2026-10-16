@@ -26,7 +26,6 @@
         "@ai-sdk/google": "^4.0.93",
         "@ai-sdk/openai": "^4.0.91",
         "@google/generative-ai": "^0.24.1",
-        "anthropic": "^0.0.0",
         "openai": "^7.32.0",
         "svix": "^2.8.0"
     }
